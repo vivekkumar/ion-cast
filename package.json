@@ -1,4 +1,5 @@
 {
+  "homepage": "http://vivekkumarbt.github.io/ion-cast",
   "name": "ion-cast",
   "version": "1.0.0",
   "description": "> This example includes a Javascript and an Android application that must both be running to get playback on the Chromecast.   > See [here](https://codelabs.developers.google.com/codelabs/cast-receiver/#2) for help running this code locally.   > To run the app you must register a receiver [here](https://cast.google.com/u/0/publish/#/overview), and change the `app_id` value in `res/values/strings.xml` to the receiver app ID.",
@@ -16,8 +17,7 @@
   "bugs": {
     "url": "https://github.com/vivekkumar/ion-cast/issues"
   },
-  "homepage": "https://github.com/vivekkumar/ion-cast#readme",
-  "dependencies": {
+  "devDependencies": {
     "gh-pages": "^3.1.0"
   }
 }
