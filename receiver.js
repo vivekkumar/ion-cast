@@ -5,11 +5,28 @@
  * (ii) such other agreement entered into between you and Nagravision S.A., OpenTV, Inc. or their affiliates.
  */
 
+window.hideMediaInfo = function()
+{
+  document.getElementById("infoHolder").classList.add("hidden");
+}
+
+window.showMediaInfo = function()
+{
+  document.getElementById("infoHolder").classList.remove("hidden");
+  document.getElementById("infoHolder").style.display = "block";
+}
+
+
+
+//setTimeout(function(){window.showMediaInfo()}, 5000);
+
+const LOG_TAG = 'MyReceiverApp';
 if (window.location.href.indexOf('Debug=true') != -1) {
   cast.receiver.logger.setLevelValue(cast.receiver.LoggerLevel.DEBUG);
   cast.player.api.setLoggerLevel(cast.player.api.LoggerLevel.DEBUG);
 }
-
+var isLive = false;
+var eventSet;
 var mediaElement = document.getElementById('vid');
 
 // Create the media manager. This will handle all media messages by default.
@@ -24,7 +41,104 @@ let token = null;
 let licenceUri = null;
 let ssmClient = null;
 
+
+
+setTextOnFrame = function (name, text)
+{
+  document.getElementById(name).innerHTML = text;
+}
+
+//mediaElement.addEventListener('pause', onPause);
+ mediaElement.addEventListener("pause", (event) => {
+      window.showMediaInfo();
+    });
+
+  mediaElement.addEventListener("play", (event) => {
+      window.hideMediaInfo();
+    });
+
+ mediaElement.addEventListener("timeupdate", (event) => {
+//event.data['media']
+//setTextOnFrame("title",eventSet.data['media']['customData']['period'])
+ var currentTime = Math.round(Date.now()) 
+   if(eventSet.data['media']['customData']['period'] != null && isLive)
+  {
+    var endTime = parseInt(eventSet.data['media']['customData']['period']['end']);
+
+    if (endTime < 100000000000) {
+      endTime *= 1000;
+    }
+    var d = new Date(endTime);
+    var showTime = d.toLocaleTimeString(navigator.language, {hour: '2-digit', minute:'2-digit'});
+    setTextOnFrame("timeEnd", showTime)
+
+    var startTime = parseInt(eventSet.data['media']['customData']['period']['start']);
+   // startTime *= 1000;
+   if (startTime < 100000000000) {
+      startTime *= 1000;
+    }
+    d = new Date(startTime);
+     showTime = d.toLocaleTimeString(navigator.language, {hour: '2-digit', minute:'2-digit'});
+    setTextOnFrame("timeStart", showTime)
+
+   
+    currentTime -= startTime;
+    endTime -= startTime;
+
+
+
+     var percentage = ((endTime - currentTime) / (endTime)) * 100
+    percentage = 100 - percentage;
+    document.getElementById("myBar").style.width = percentage + "%"; 
+  }
+ else if(eventSet.data['media']['customData']['event_end'] === 0)
+
+  {
+    
+    var endTime =eventSet.data['media']['duration'];
+    endTime = Math.floor( endTime )
+    var date = new Date(0);
+    date.setSeconds(endTime);
+    var timeString = date.toISOString().substr(11, 8);
+    setTextOnFrame("timeEnd", timeString)
+    //setTextOnFrame("timeStart", "")
+
+    var currentTime = mediaElement.currentTime;
+    var percentage = ((endTime - currentTime) / (endTime)) * 100
+    percentage = 100 - percentage;
+    setTextOnFrame("timeStart", "")
+    document.getElementById("myBar").style.width = percentage + "%";
+
+   //setTextOnFrame("timeEnd",Math.floor( endTime.toHHMMSS() ))
+  }
+  
+  else
+  {
+   var endTime = mediaElement.duration;
+    endTime = Math.floor( endTime )
+    var date = new Date(0);
+    date.setSeconds(endTime);
+    var timeString = date.toISOString().substr(11, 8);
+    setTextOnFrame("timeEnd", timeString)
+    //setTextOnFrame("timeStart", "")
+
+    var currentTime = mediaElement.currentTime;
+    var percentage = ((endTime - currentTime) / (endTime)) * 100
+    percentage = 100 - percentage;
+    setTextOnFrame("timeStart", "")
+    document.getElementById("myBar").style.width = percentage + "%";
+  }
+  
+     
+    });
+ 
+
+
 mediaManager.onLoad = function (event) {
+  eventSet = event;
+  //castContext.getInstance().setLoggerLevel(cast.framework.LoggerLevel.DEBUG);
+
+ // window.mediaManager.addEventListener(cast.framework.events.category.PAUSE, mediaManagerPaused);
   // Reset DRM data
   token = null;
   licenceUri = null;
@@ -39,19 +153,28 @@ mediaManager.onLoad = function (event) {
     player.unload();    // Must unload before starting again.
     window.player = null;
   }
-  // This trivial parser is by no means best practice, it shows how to access
-  // event data, and uses the a string search of the suffix, rather than looking
-  // at the MIME type which would be better.  In practice, you will know what
-  // content you are serving while writing your player.
+
+  setTextOnFrame("title",event.data['media']['metadata']['title'])
+  setTextOnFrame("subtitle",event.data['media']['metadata']['subtitle'])
+  setTextOnFrame("studio",event.data['media']['metadata']['studio'])
+
   if (event.data['media'] && event.data['media']['contentId']) {
-    console.log('Starting media application');
+
+    setTimeout(function(){window.hideMediaInfo()}, 3000);
     var url = event.data['media']['contentId'];
+
     // Create the Host - much of your interaction with the library uses the Host and
     // methods you provide to it.
     window.host = new cast.player.api.Host(
       {'mediaElement':mediaElement, 'url':url});
     var ext = url.substring(url.lastIndexOf('.'), url.length);
     var initStart = event.data['media']['currentTime'] || 0;
+
+    /*var studio = event.data['media']['studio'] || "";
+    var streamDuration = event.data['media']['streamDuration'] || "";
+    var playPosition = event.data['media']['playPosition'] || "";*/
+
+
     var autoplay = event.data['autoplay'] || true;
     var protocol = null;
     mediaElement.autoplay = autoplay;  // Make sure autoplay get's set
@@ -65,7 +188,14 @@ mediaManager.onLoad = function (event) {
     // Smooth Streaming
       protocol = cast.player.api.CreateSmoothStreamingProtocol(host);
     }
-
+    
+     if (url.toUpperCase().indexOf('/LIVE/') >= 0) {
+      isLive = true;
+     }
+     else
+     {
+       isLive = false;
+     }
     // Extract custom data
     // Customise this to match the mapping from your sender app
     if (event.data['media']['customData']) {
